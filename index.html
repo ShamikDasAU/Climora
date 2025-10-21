@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climora - Weather App</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'bounce-slow': 'bounce 3s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.7s ease-out',
+                        'slide-down': 'slideDown 0.7s ease-out',
+                        'spin-slow': 'spin 3s linear infinite' // added to fix animate-spin-slow
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        },
+                        slideDown: {
+                            '0%': { transform: 'translateY(-20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        }
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass {
+                background-color: rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(4px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+            .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            /* Animated gradient background */
+            @keyframes gradientMove {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+            .bg-animated { background-size: 300% 300%; animation: gradientMove 18s ease infinite; }
+            .dark .glass { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+
+            /* Text visibility and swap animations */
+            .text-glow { text-shadow: 0 2px 10px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.2); }
+            @keyframes textOut { to { opacity: 0; transform: translateY(-6px); } }
+            @keyframes textIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+            .swap-out { animation: textOut 180ms ease forwards; will-change: transform, opacity; }
+            .swap-in { animation: textIn 220ms ease forwards; will-change: transform, opacity; }
+            @keyframes pop { 0% { transform: scale(0.9); opacity: .7; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+            .pop-once { animation: pop 220ms ease both; }
+
+            /* Sky decor animations */
+            @keyframes driftX {
+                0% { transform: translateX(-20vw); }
+                100% { transform: translateX(120vw); }
+            }
+            @keyframes bob {
+                0%,100% { transform: translateY(0); }
+                50% { transform: translateY(-12px); }
+            }
+            @keyframes twinkle {
+                0%, 100% { opacity: .2; }
+                50% { opacity: 1; }
+            }
+            @keyframes cloudDrift {
+                0% { transform: translateX(-30vw); }
+                100% { transform: translateX(130vw); }
+            }
+            .orb-path {
+                position: absolute;
+                top: 14vh;
+                left: -20vw;
+                animation: driftX 55s linear infinite;
+            }
+            #moon-wrap { top: 18vh; animation-duration: 65s; }
+            .sun-orb, .moon-orb {
+                width: clamp(80px, 12vw, 160px);
+                height: clamp(80px, 12vw, 160px);
+                border-radius: 9999px;
+                will-change: transform, filter, opacity;
+                animation: bob 6s ease-in-out infinite;
+                filter: drop-shadow(0 0 18px rgba(255,255,255,0.35));
+            }
+            .sun-orb {
+                background: radial-gradient(circle at 30% 30%, #fff8b0 0%, #fde047 35%, #f59e0b 60%, rgba(245, 158, 11, 0) 70%);
+                box-shadow: 0 0 60px 20px rgba(253, 224, 71, 0.25);
+            }
+            .moon-orb {
+                background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e5e7eb 40%, #cbd5e1 70%, rgba(203,213,225,0) 75%);
+                box-shadow: 0 0 60px 18px rgba(148,163,184,0.22);
+            }
+            .star {
+                position: absolute;
+                width: 2px; height: 2px;
+                border-radius: 9999px;
+                background: rgba(255,255,255,0.9);
+                box-shadow: 0 0 6px rgba(255,255,255,0.7);
+                animation: twinkle var(--twinkle, 2.2s) ease-in-out infinite;
+                will-change: opacity;
+            }
+            .cloud {
+                position: absolute;
+                height: 90px;
+                border-radius: 9999px;
+                background: rgba(255,255,255,0.28);
+                filter: blur(2px);
+                box-shadow:
+                  40px 10px 0 10px rgba(255,255,255,0.28),
+                  90px 0px 0 16px rgba(255,255,255,0.24),
+                  140px 15px 0 12px rgba(255,255,255,0.22);
+                animation: cloudDrift var(--speed, 60s) linear infinite;
+                will-change: transform, opacity;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex flex-col items-center justify-center p-4 transition-all duration-1000">
+    <!-- Animated Sky Layer -->
+    <div id="sky" class="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <!-- Day/Night orbs -->
+        <div id="sun-wrap" class="orb-path opacity-0 transition-opacity duration-700">
+            <div id="sun" class="sun-orb"></div>
+        </div>
+        <div id="moon-wrap" class="orb-path opacity-0 transition-opacity duration-700">
+            <div id="moon" class="moon-orb"></div>
+        </div>
+        <!-- Stars and clouds -->
+        <div id="sky-stars" class="absolute inset-0 opacity-0 transition-opacity duration-700"></div>
+        <div id="clouds" class="absolute inset-x-0 top-8 h-44 opacity-0 transition-opacity duration-700"></div>
+    </div>
+    <div class="w-full max-w-md mx-auto relative z-10">
+        <!-- Dark Mode Toggle -->
+        <button id="theme-toggle" class="fixed top-4 right-4 glass rounded-full p-3 text-white hover:bg-white/30 transition-all duration-300" aria-label="Toggle dark mode" title="Toggle dark mode">
+            <i id="theme-toggle-icon" class="fas fa-moon"></i>
+            <span class="sr-only">Toggle dark mode</span>
+        </button>
+        <!-- App Header with Animation -->
+        <header class="text-center mb-8 animate-slide-down">
+            <h1 class="text-5xl font-bold text-white mb-2 text-shadow text-glow">Climora</h1>
+            <p class="text-white/80 text-lg text-glow">Real-time Weather</p>
+        </header>
+        
+        <!-- Search Form -->
+        <form class="mb-6 animate-slide-up">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <input
+                        type="text"
+                        id="city-input"
+                        placeholder="Enter city name"
+                        class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-300"
+                    />
+                    <i class="fas fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-white/70"></i>
+                </div>
+                <button
+                    type="submit"
+                    id="search-btn"
+                    class="px-6 py-4 glass text-white rounded-2xl hover:bg-white/30 transition-all duration-300 font-medium flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </button>
+            </div>
+            
+            <div class="mt-4 flex justify-center">
+                <button
+                    type="button"
+                    id="location-btn"
+                    class="flex items-center gap-3 px-6 py-4 glass text-white rounded-2xl hover:bg-white/30 transition-all duration-300 font-medium animate-pulse-slow"
+                >
+                    <i class="fas fa-location-arrow"></i>
+                    Use My Location
+                </button>
+            </div>
+        </form>
+        
+        <!-- Loading Animation -->
+        <div id="loading" class="hidden flex-col items-center justify-center py-12">
+            <div class="relative w-20 h-20 mb-6">
+                <div class="absolute inset-0 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div class="absolute inset-2 border-4 border-white/20 border-b-white rounded-full animate-spin-slow"></div>
+            </div>
+            <p class="text-white/80 text-lg">Fetching weather data...</p>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="error-message" class="hidden bg-red-500/20 backdrop-blur-xs border border-red-500/30 text-white p-4 rounded-2xl mb-6 animate-fade-in">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-exclamation-circle text-xl"></i>
+                <p id="error-text">City not found. Please try again.</p>
+            </div>
+        </div>
+        
+        <!-- Weather Card -->
+        <div id="weather-card" class="glass rounded-3xl p-6 shadow-2xl transition-all duration-500 animate-fade-in">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 id="city-name" class="text-2xl font-bold text-white text-shadow text-glow">Kolkata, IN</h2>
+                    <p id="weather-condition" class="text-white/80 capitalize">Loading...</p>
+                </div>
+                <div id="weather-icon" class="text-white text-5xl animate-float">
+                    <i class="fas fa-cloud-sun"></i>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-center mb-8">
+                <div id="temperature" class="text-7xl font-bold text-white text-shadow animate-pulse-slow text-glow">22°C</div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/10 backdrop-blur-xs rounded-xl p-4 text-center transition-transform duration-300 hover:scale-105">
+                    <p class="text-white/70 text-sm mb-1">Feels Like</p>
+                    <p id="feels-like" class="text-white font-semibold text-xl">24°C</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-xs rounded-xl p-4 text-center transition-transform duration-300 hover:scale-105">
+                    <p class="text-white/70 text-sm mb-1">Humidity</p>
+                    <p id="humidity" class="text-white font-semibold text-xl">65%</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-xs rounded-xl p-4 text-center transition-transform duration-300 hover:scale-105">
+                    <p class="text-white/70 text-sm mb-1">Wind Speed</p>
+                    <p id="wind-speed" class="text-white font-semibold text-xl">12 km/h</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-xs rounded-xl p-4 text-center transition-transform duration-300 hover:scale-105">
+                    <p class="text-white/70 text-sm mb-1">Pressure</p>
+                    <p id="pressure" class="text-white font-semibold text-xl">1015 hPa</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-white/70 animate-fade-in">
+            <p>
+                Built with ❤ by
+                <a
+                    href="https://www.linkedin.com/in/shamik-das-379347359"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="no-underline text-amber-200 dark:text-amber-300 hover:text-white/90 transition-colors duration-200 text-glow font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-md"
+                    title="View LinkedIn profile"
+                >Shamik Das</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // API proxy to keep the key secret on the server
+        const API_PROXY = '/api/weather';
+        let currentCondition = 'Partly Cloudy';
+        let isDayMode = true;
+
+        // DOM Elements
+        const cityInput = document.getElementById('city-input');
+        const searchBtn = document.getElementById('search-btn');
+        const locationBtn = document.getElementById('location-btn');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleIcon = document.getElementById('theme-toggle-icon');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const weatherCard = document.getElementById('weather-card');
+        const cityName = document.getElementById('city-name');
+        const weatherCondition = document.getElementById('weather-condition');
+        const weatherIcon = document.getElementById('weather-icon');
+        const temperature = document.getElementById('temperature');
+        const feelsLike = document.getElementById('feels-like');
+        const humidity = document.getElementById('humidity');
+        const windSpeed = document.getElementById('wind-speed');
+        const pressure = document.getElementById('pressure');
+        const body = document.body;
+        const form = document.querySelector('form');
+        const sky = document.getElementById('sky');
+        const sunWrap = document.getElementById('sun-wrap');
+        const moonWrap = document.getElementById('moon-wrap');
+        const starsEl = document.getElementById('sky-stars');
+        const cloudsEl = document.getElementById('clouds');
+
+        // Mock weather data for demonstration
+        const mockWeatherData = {
+            'new york': {
+                city: 'New York',
+                country: 'US',
+                temp: 22,
+                condition: 'Partly Cloudy',
+                icon: 'fa-cloud-sun',
+                feels_like: 24,
+                humidity: 65,
+                wind_speed: 12,
+                pressure: 1015,
+                background: 'from-blue-400 via-purple-500 to-pink-500'
+            },
+            'london': {
+                city: 'London',
+                country: 'UK',
+                temp: 15,
+                condition: 'Rainy',
+                icon: 'fa-cloud-rain',
+                feels_like: 14,
+                humidity: 80,
+                wind_speed: 18,
+                pressure: 1005,
+                background: 'from-blue-500 to-indigo-700'
+            },
+            'tokyo': {
+                city: 'Tokyo',
+                country: 'Japan',
+                temp: 28,
+                condition: 'Sunny',
+                icon: 'fa-sun',
+                feels_like: 30,
+                humidity: 55,
+                wind_speed: 8,
+                pressure: 1012,
+                background: 'from-yellow-400 to-orange-500'
+            },
+            'sydney': {
+                city: 'Sydney',
+                country: 'Australia',
+                temp: 25,
+                condition: 'Cloudy',
+                icon: 'fa-cloud',
+                feels_like: 26,
+                humidity: 70,
+                wind_speed: 14,
+                pressure: 1018,
+                background: 'from-gray-400 to-gray-600'
+            },
+            'paris': {
+                city: 'Paris',
+                country: 'France',
+                temp: 18,
+                condition: 'Clear',
+                icon: 'fa-sun',
+                feels_like: 17,
+                humidity: 60,
+                wind_speed: 10,
+                pressure: 1013,
+                background: 'from-yellow-300 to-orange-400'
+            }
+        };
+
+        // Weather gradients (light and dark)
+        const weatherGradientsLight = {
+            'Clear': 'from-yellow-300 via-orange-400 to-pink-500',
+            'Sunny': 'from-yellow-300 via-orange-400 to-pink-500',
+            'Clouds': 'from-slate-300 via-slate-400 to-slate-500',
+            'Cloudy': 'from-slate-300 via-slate-400 to-slate-500',
+            'Partly Cloudy': 'from-blue-300 via-purple-400 to-pink-500',
+            'Rain': 'from-indigo-500 via-blue-600 to-slate-700',
+            'Rainy': 'from-indigo-500 via-blue-600 to-slate-700',
+            'Drizzle': 'from-blue-400 via-indigo-500 to-slate-600',
+            'Thunderstorm': 'from-purple-700 via-indigo-800 to-gray-900',
+            'Snow': 'from-blue-300 via-blue-400 to-blue-500',    // darker for contrast
+            'Mist': 'from-gray-400 via-gray-500 to-gray-600',    // better contrast
+            'Fog': 'from-gray-400 via-gray-500 to-gray-600'      // better contrast
+        };
+        const weatherGradientsDark = {
+             'Clear': 'from-amber-400 via-orange-600 to-rose-700',
+             'Sunny': 'from-amber-400 via-orange-600 to-rose-700',
+             'Clouds': 'from-slate-700 via-slate-800 to-slate-900',
+             'Cloudy': 'from-slate-700 via-slate-800 to-slate-900',
+             'Partly Cloudy': 'from-indigo-700 via-purple-800 to-slate-900',
+             'Rain': 'from-blue-900 via-indigo-900 to-slate-900',
+             'Rainy': 'from-blue-900 via-indigo-900 to-slate-900',
+             'Drizzle': 'from-slate-800 via-blue-900 to-slate-950',
+             'Thunderstorm': 'from-purple-900 via-indigo-950 to-black',
+             'Snow': 'from-slate-600 via-slate-700 to-slate-800', // keep dark in dark mode
+             'Mist': 'from-slate-600 via-slate-700 to-slate-800',
+             'Fog': 'from-slate-600 via-slate-700 to-slate-800'
+        };
+
+        function isDark() {
+            return document.documentElement.classList.contains('dark');
+        }
+        function updateThemeToggleIcon(mode) {
+            if ((mode || (isDark() ? 'dark' : 'light')) === 'dark') {
+                themeToggleIcon.classList.remove('fa-moon');
+                themeToggleIcon.classList.add('fa-sun');
+            } else {
+                themeToggleIcon.classList.remove('fa-sun');
+                themeToggleIcon.classList.add('fa-moon');
+            }
+        }
+        function applyBackgroundGradient(condition) {
+            const map = isDark() ? weatherGradientsDark : weatherGradientsLight;
+            const gradient = map[condition] || (isDark() ? 'from-slate-700 via-slate-800 to-slate-900' : 'from-blue-400 via-purple-500 to-pink-500');
+            body.className = `min-h-screen bg-gradient-to-br ${gradient} bg-animated flex flex-col items-center justify-center p-4 transition-all duration-1000`;
+        }
+        function setTheme(mode) {
+            const m = mode || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.classList.toggle('dark', m === 'dark');
+            localStorage.setItem('theme', m);
+            updateThemeToggleIcon(m);
+            applyBackgroundGradient(currentCondition);
+        }
+
+        // Determine day/night from API response
+        function determineIsDay(apiData) {
+            try {
+                const sunrise = apiData?.sys?.sunrise;
+                const sunset = apiData?.sys?.sunset;
+                const dt = apiData?.dt;
+                if (sunrise && sunset && dt) {
+                    return dt >= sunrise && dt < sunset;
+                }
+                // Fallback using timezone offset if needed
+                const tz = apiData?.timezone ?? 0;
+                const nowUtc = Math.floor(Date.now() / 1000);
+                const localTs = nowUtc + tz;
+                const hours = (new Date(localTs * 1000)).getUTCHours();
+                return hours >= 6 && hours < 18;
+            } catch {
+                return true;
+            }
+        }
+        
+        // Build starfield once
+        function createStars(count = 80) {
+            if (starsEl.childElementCount > 0) return;
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < count; i++) {
+                const s = document.createElement('span');
+                s.className = 'star';
+                const left = Math.random() * 100;
+                const top = Math.random() * 100;
+                const size = Math.random() * 2 + 1;
+                s.style.left = `${left}vw`;
+                s.style.top = `${top}vh`;
+                s.style.width = `${size}px`;
+                s.style.height = `${size}px`;
+                s.style.setProperty('--twinkle', `${1.8 + Math.random()*2.4}s`);
+                s.style.animationDelay = `${Math.random() * 2}s`;
+                frag.appendChild(s);
+            }
+            starsEl.appendChild(frag);
+        }
+        
+        // Build a few clouds for daytime
+        function createClouds(count = 4) {
+            if (cloudsEl.childElementCount > 0) return;
+            for (let i = 0; i < count; i++) {
+                const c = document.createElement('div');
+                c.className = 'cloud';
+                const width = 180 + Math.random()*180; // 180-360px
+                const top = 5 + Math.random()*60;      // 5-65vh
+                const delay = Math.random()*-40;       // negative to desync
+                const speed = 50 + Math.random()*30;   // 50-80s
+                c.style.width = `${width}px`;
+                c.style.top = `${top}vh`;
+                c.style.left = `${-30 - Math.random()*30}vw`;
+                c.style.setProperty('--speed', `${speed}s`);
+                c.style.animationDelay = `${delay}s`;
+                cloudsEl.appendChild(c);
+            }
+        }
+        
+        // Toggle sky based on day/night
+        function updateDayNight(day) {
+            isDayMode = !!day;
+            // Sun / Moon visibility
+            sunWrap.classList.toggle('opacity-100', isDayMode);
+            sunWrap.classList.toggle('opacity-0', !isDayMode);
+            moonWrap.classList.toggle('opacity-100', !isDayMode);
+            moonWrap.classList.toggle('opacity-0', isDayMode);
+            // Stars and clouds
+            starsEl.classList.toggle('opacity-60', !isDayMode);
+            starsEl.classList.toggle('opacity-0', isDayMode);
+            cloudsEl.classList.toggle('opacity-35', isDayMode);
+            cloudsEl.classList.toggle('opacity-0', !isDayMode);
+        }
+
+        // Show loading animation
+        function showLoading() {
+            loading.classList.remove('hidden');
+            weatherCard.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        // Hide loading animation
+        function hideLoading() {
+            loading.classList.add('hidden');
+        }
+
+        // Show error message
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+            weatherCard.classList.add('hidden');
+            hideLoading();
+        }
+
+        // Hide error message
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+        // Smooth text swaps
+        function swapText(el, newText) {
+            if (el.textContent === newText) return;
+            el.classList.remove('swap-in');
+            el.classList.add('swap-out');
+            el.addEventListener('animationend', function handler() {
+                el.removeEventListener('animationend', handler);
+                el.textContent = newText;
+                el.classList.remove('swap-out');
+                el.classList.add('swap-in');
+                // clean up swap-in after it plays
+                setTimeout(() => el.classList.remove('swap-in'), 260);
+            }, { once: true });
+        }
+
+        // Count-up/down number animation
+        function animateNumber(el, to, suffix = '') {
+            const currentText = el.textContent || '';
+            const match = currentText.match(/-?\d+/);
+            const from = match ? parseInt(match[0], 10) : 0;
+            const start = performance.now();
+            const duration = 500;
+            const end = typeof to === 'number' ? to : parseFloat(to);
+            if (from === end || isNaN(end)) {
+                el.textContent = `${end}${suffix}`;
+                return;
+            }
+            function frame(now) {
+                const t = Math.min(1, (now - start) / duration);
+                const eased = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
+                const val = Math.round(from + (end - from) * eased);
+                el.textContent = `${val}${suffix}`;
+                if (t < 1) requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        }
+
+        // Update weather display
+        function updateWeather(data) {
+            swapText(cityName, `${data.city}, ${data.country}`);
+            swapText(weatherCondition, data.condition);
+            animateNumber(temperature, data.temp, '°C');
+            animateNumber(feelsLike, data.feels_like, '°C');
+            animateNumber(humidity, data.humidity, '%');
+            animateNumber(windSpeed, data.wind_speed, ' km/h');
+            animateNumber(pressure, data.pressure, ' hPa');
+             
+             // Update weather icon with animation
+            weatherIcon.innerHTML = `<i class="fas ${data.icon}"></i>`;
+            weatherIcon.classList.remove('pop-once');
+            // trigger reflow to restart animation
+            void weatherIcon.offsetWidth;
+            weatherIcon.classList.add('pop-once');
+             
+             // Update background gradient (animated, theme-aware)
+             currentCondition = data.condition;
+             applyBackgroundGradient(currentCondition);
+             
+             // Show weather card with animation
+             weatherCard.classList.remove('hidden');
+             weatherCard.classList.add('animate-fade-in');
+             
+             hideLoading();
+             hideError();
+        }
+
+        // Fetch weather from OpenWeatherMap API
+        async function fetchWeather(city) {
+            showLoading();
+            try {
+                const response = await fetch(`${API_PROXY}?q=${encodeURIComponent(city)}`);
+                if (!response.ok) throw new Error('City not found');
+                const data = await response.json();
+               // Day/Night by location time
+               updateDayNight(determineIsDay(data));
+
+                const weatherData = {
+                    city: data.name,
+                    country: data.sys.country,
+                    temp: Math.round(data.main.temp),
+                    condition: data.weather[0].main,
+                    icon: getWeatherIcon(data.weather[0].main),
+                    feels_like: Math.round(data.main.feels_like),
+                    humidity: data.main.humidity,
+                    wind_speed: Math.round(data.wind.speed * 3.6), // m/s -> km/h
+                    pressure: data.main.pressure
+                };
+                updateWeather(weatherData);
+            } catch (error) {
+                showError('City not found. Please try again.');
+            }
+        }
+
+        // Get weather icon based on condition
+        function getWeatherIcon(condition) {
+            const iconMap = {
+                'Clear': 'fa-sun',
+                'Clouds': 'fa-cloud',
+                'Rain': 'fa-cloud-rain',
+                'Drizzle': 'fa-cloud-rain',
+                'Thunderstorm': 'fa-bolt',
+                'Snow': 'fa-snowflake',
+                'Mist': 'fa-smog',
+                'Fog': 'fa-smog',
+                'Partly Cloudy': 'fa-cloud-sun',
+                'Sunny': 'fa-sun'
+            };
+            return iconMap[condition] || 'fa-cloud';
+        }
+
+        // Geolocation success callback
+        function handleLocationSuccess(position) {
+            const { latitude, longitude } = position.coords;
+            fetchWeatherByCoordinates(latitude, longitude);
+        }
+
+        // Geolocation error callback
+        function handleLocationError() {
+            showError('Unable to retrieve your location. Please enter a city.');
+        }
+
+        // Fetch weather by coordinates
+        async function fetchWeatherByCoordinates(lat, lon) {
+            showLoading();
+            try {
+                const response = await fetch(`${API_PROXY}?lat=${lat}&lon=${lon}`);
+                if (!response.ok) throw new Error('Unable to fetch weather data');
+                const data = await response.json();
+               // Day/Night by location time
+               updateDayNight(determineIsDay(data));
+
+                const weatherData = {
+                    city: data.name,
+                    country: data.sys.country,
+                    temp: Math.round(data.main.temp),
+                    condition: data.weather[0].main,
+                    icon: getWeatherIcon(data.weather[0].main),
+                    feels_like: Math.round(data.main.feels_like),
+                    humidity: data.main.humidity,
+                    wind_speed: Math.round(data.wind.speed * 3.6), // m/s -> km/h
+                    pressure: data.main.pressure
+                };
+                updateWeather(weatherData);
+            } catch (error) {
+                showError('Unable to fetch weather data. Please try again later.');
+            }
+        }
+
+        // Event Listeners
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const city = cityInput.value.trim();
+            if (city) {
+                fetchWeather(city);
+            } else {
+                showError('Please enter a city name');
+            }
+        });
+
+        locationBtn.addEventListener('click', () => {
+            if (navigator.geolocation) {
+                showLoading();
+                navigator.geolocation.getCurrentPosition(
+                    handleLocationSuccess,
+                    handleLocationError,
+                    { timeout: 10000 }
+                );
+            } else {
+                showError('Geolocation is not supported by this browser');
+            }
+        });
+
+        // Theme toggle
+        themeToggleBtn.addEventListener('click', () => {
+             const next = isDark() ? 'light' : 'dark';
+             setTheme(next);
+        });
+
+        // Initialize with default weather
+        document.addEventListener('DOMContentLoaded', () => {
+            const stored = localStorage.getItem('theme');
+            setTheme(stored || null);
+            updateThemeToggleIcon();
+            // Build sky decor once
+            createStars(80);
+            createClouds(4);
+            // Default guess by local time until first API call
+            const h = new Date().getHours();
+            updateDayNight(h >= 6 && h < 18);
+            fetchWeather('Kolkata, IN');
+        });
+    </script>
+</body>
+</html>
