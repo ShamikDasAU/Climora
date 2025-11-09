@@ -34,3 +34,5 @@ desktop.ini
 # Hosting configs
 .netlify/
 .vercel/
+.vercel
+*.vercel.json~

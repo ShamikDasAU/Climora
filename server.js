@@ -2,14 +2,9 @@ const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
 
 const API_BASE = 'http://api.weatherstack.com';
 const API_KEY = process.env.WEATHERSTACK_API_KEY;
-if (!API_KEY) {
-  console.error('Missing WEATHERSTACK_API_KEY in .env');
-  process.exit(1);
-}
 
 const app = express();
 app.use(cors());
@@ -51,7 +46,7 @@ app.get('/api/weather', async (req, res) => {
         speed: data.current.wind_speed / 3.6 // Convert km/h to m/s
       },
       dt: data.location.localtime_epoch,
-      timezone: data.location.utc_offset.split(':')[0] * 3600 // Convert to seconds
+      timezone: data.location.utc_offset ? parseInt(data.location.utc_offset.split(':')[0]) * 3600 : 0
     };
     
     res.json(transformedData);
@@ -61,5 +56,11 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+}
+
+// Export for Vercel
+module.exports = app;
