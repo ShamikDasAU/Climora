@@ -17,6 +17,6 @@
     }
   ],
   "env": {
-    "WEATHERSTACK_API_KEY": "@weatherstack_api_key"
+    "WEATHERSTACK_API_KEY": "393c454c56779d7f3ca7d6bf92ab017"
   }
 }
