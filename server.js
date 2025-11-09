@@ -4,10 +4,10 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const API_BASE = 'https://api.openweathermap.org/data/2.5';
-const API_KEY = process.env.OPENWEATHER_API_KEY;
+const API_BASE = 'http://api.weatherstack.com';
+const API_KEY = process.env.WEATHERSTACK_API_KEY;
 if (!API_KEY) {
-  console.error('Missing OPENWEATHER_API_KEY in .env');
+  console.error('Missing WEATHERSTACK_API_KEY in .env');
   process.exit(1);
 }
 
@@ -22,14 +22,39 @@ app.get('/api/weather', async (req, res) => {
       return res.status(400).json({ error: 'q or lat+lon required' });
     }
 
-    const params = q
-      ? `q=${encodeURIComponent(q)}`
-      : `lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-
-    const url = `${API_BASE}/weather?${params}&appid=${API_KEY}&units=metric`;
+    // WeatherStack uses 'query' parameter for both city names and coordinates
+    const query = q || `${lat},${lon}`;
+    const url = `${API_BASE}/current?access_key=${API_KEY}&query=${encodeURIComponent(query)}`;
+    
     const r = await fetch(url);
     const data = await r.json();
-    res.status(r.status).json(data);
+    
+    if (data.error) {
+      return res.status(404).json({ error: data.error.info || 'Location not found' });
+    }
+    
+    // Transform WeatherStack response to match our frontend format
+    const transformedData = {
+      name: data.location.name,
+      sys: { country: data.location.country },
+      main: {
+        temp: data.current.temperature,
+        feels_like: data.current.feelslike,
+        humidity: data.current.humidity,
+        pressure: data.current.pressure
+      },
+      weather: [{
+        main: data.current.weather_descriptions[0],
+        description: data.current.weather_descriptions[0]
+      }],
+      wind: {
+        speed: data.current.wind_speed / 3.6 // Convert km/h to m/s
+      },
+      dt: data.location.localtime_epoch,
+      timezone: data.location.utc_offset.split(':')[0] * 3600 // Convert to seconds
+    };
+    
+    res.json(transformedData);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

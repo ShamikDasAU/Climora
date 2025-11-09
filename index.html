@@ -418,13 +418,12 @@
         // Determine day/night from API response
         function determineIsDay(apiData) {
             try {
-                const sunrise = apiData?.sys?.sunrise;
-                const sunset = apiData?.sys?.sunset;
-                const dt = apiData?.dt;
-                if (sunrise && sunset && dt) {
-                    return dt >= sunrise && dt < sunset;
+                // For WeatherStack, we can use is_day field if available
+                if (apiData?.current?.is_day !== undefined) {
+                    return apiData.current.is_day === 'yes';
                 }
-                // Fallback using timezone offset if needed
+                
+                // Fallback using timezone offset
                 const tz = apiData?.timezone ?? 0;
                 const nowUtc = Math.floor(Date.now() / 1000);
                 const localTs = nowUtc + tz;
